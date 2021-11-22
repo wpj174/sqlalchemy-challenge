@@ -67,7 +67,7 @@ def home():
 # Precip route
 # - report rain data
 @app.route("/api/v1.0/precipitation")
-def about():
+def precip():
     # Create our session (link) from Python to the DB
     session = Session(engine)
 
@@ -84,6 +84,30 @@ def about():
         all_precip.append(dict(result))
 
     return jsonify(all_precip)
+
+
+# Stations route
+# - report station info
+@app.route("/api/v1.0/stations")
+def station():
+    # Create our session (link) from Python to the DB
+    session = Session(engine)
+
+    """Return a list of all weather observation stations"""
+    # Query all stations
+    results = session.query(Station.id, Station.station, Station.name, Station.latitude, Station.longitude, Station.elevation).all()
+
+    session.close()
+
+    # Convert list of tuples into dict
+    all_stations = []
+    
+    for result in results:
+        all_stations.append(dict(result))
+
+    return jsonify(all_stations)
+
+
 
 
 if __name__ == "__main__":
