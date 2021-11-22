@@ -144,6 +144,75 @@ def tobs():
     return jsonify(last_year_temps)
 
 
+# Temp obs route
+# - report observed temperatures
+@app.route("/api/v1.0/<start>")
+def temp_stats_open(start):
+    # Create our session (link) from Python to the DB
+    session = Session(engine)
+
+    """Return a list of temperature observations from the most active station for the last year"""
+    # Get most active station
+    station_activity = session.query(Measurement.station, func.count(Measurement.station).label('readings')).group_by(Measurement.station).all()
+    station_activity.sort(reverse=True, key=lambda x:x[1])
+    most_active = station_activity[0][0]
+
+
+    # Get most recent date, prior year start date
+    latest_text = session.query(func.max(Measurement.date)).all()[0][0]
+    latest_list = latest_text.split("-")
+    start_date = dt.date(int(latest_list[0]), int(latest_list[1]), int(latest_list[2])) - dt.timedelta(days=365)
+
+    # Get requested temp data
+    active_temps = session.query(Measurement.date, Measurement.tobs).\
+        filter(func.strftime("%Y-%m-%d", Measurement.date) > start_date, Measurement.station == most_active).\
+        all()
+
+    session.close()
+
+    # Convert list of tuples into dict
+    last_year_temps = []
+
+    for temp in active_temps:
+        last_year_temps.append(dict(temp))
+    
+    return (start)
+
+
+# Temp obs route
+# - report observed temperatures
+@app.route("/api/v1.0/<start>/<end>")
+def temp_stats_closed(start, end):
+    # Create our session (link) from Python to the DB
+    session = Session(engine)
+
+    """Return a list of temperature observations from the most active station for the last year"""
+    # Get most active station
+    station_activity = session.query(Measurement.station, func.count(Measurement.station).label('readings')).group_by(Measurement.station).all()
+    station_activity.sort(reverse=True, key=lambda x:x[1])
+    most_active = station_activity[0][0]
+
+
+    # Get most recent date, prior year start date
+    latest_text = session.query(func.max(Measurement.date)).all()[0][0]
+    latest_list = latest_text.split("-")
+    start_date = dt.date(int(latest_list[0]), int(latest_list[1]), int(latest_list[2])) - dt.timedelta(days=365)
+
+    # Get requested temp data
+    active_temps = session.query(Measurement.date, Measurement.tobs).\
+        filter(func.strftime("%Y-%m-%d", Measurement.date) > start_date, Measurement.station == most_active).\
+        all()
+
+    session.close()
+
+    # Convert list of tuples into dict
+    last_year_temps = []
+
+    for temp in active_temps:
+        last_year_temps.append(dict(temp))
+    
+    return (f"{start} {end}")
+
 
 
 if __name__ == "__main__":
