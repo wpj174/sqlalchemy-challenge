@@ -177,32 +177,29 @@ def temp_stats_closed(start, end):
     # Create our session (link) from Python to the DB
     session = Session(engine)
 
-    """Return a list of temperature observations from the most active station for the last year"""
-    # Get most active station
-    station_activity = session.query(Measurement.station, func.count(Measurement.station).label('readings')).group_by(Measurement.station).all()
-    station_activity.sort(reverse=True, key=lambda x:x[1])
-    most_active = station_activity[0][0]
+    """Return a list of min, mean and max temperatures for the given inclusive date range"""
+    # Validate start date input
+    try:
+        date_test = bool(dt.datetime.strptime(start, '%Y-%m-%d'))
+    except ValueError:
+        return f"Invalid date: {start}", 400
 
-
-    # Get most recent date, prior year start date
-    latest_text = session.query(func.max(Measurement.date)).all()[0][0]
-    latest_list = latest_text.split("-")
-    start_date = dt.date(int(latest_list[0]), int(latest_list[1]), int(latest_list[2])) - dt.timedelta(days=365)
+    # Validate start date input
+    try:
+        date_test = bool(dt.datetime.strptime(end, '%Y-%m-%d'))
+    except ValueError:
+        return f"Invalid date: {end}", 400
 
     # Get requested temp data
-    active_temps = session.query(Measurement.date, Measurement.tobs).\
-        filter(func.strftime("%Y-%m-%d", Measurement.date) > start_date, Measurement.station == most_active).\
+    temp_stats = session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
+        filter(func.strftime("%Y-%m-%d", Measurement.date) >= start, func.strftime("%Y-%m-%d", Measurement.date) <= end).\
         all()
 
     session.close()
 
-    # Convert list of tuples into dict
-    last_year_temps = []
+    return_stats = {'TMIN': temp_stats[0][0], 'TAVG': temp_stats[0][1], 'TMAX': temp_stats[0][2]}
 
-    for temp in active_temps:
-        last_year_temps.append(dict(temp))
-    
-    return (f"{start} {end}")
+    return (jsonify(return_stats))
 
 
 
