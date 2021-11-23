@@ -59,7 +59,7 @@ def home():
         f"<td style='padding: 10px'>/api/v1.0/tobs</td><td style='padding: 10px'>Temperature observations from the most active station for the past year</td>"
         f"</tr>"
         f"<tr>"
-        f"<td style='padding: 10px'>/api/v1.0/<start>[/<end>]</td><td style='padding: 10px'>Returns minimum, average and maximum temperatures for the date range (yyyy-mm-dd)</td>"
+        f"<td style='padding: 10px'>/api/v1.0/&lt;start&gt;[/&lt;end&gt;]</td><td style='padding: 10px'>Returns minimum, average and maximum temperatures for the date range (yyyy-mm-dd)</td>"
         f"</tr>"
         f"</table>"
     )
@@ -151,32 +151,23 @@ def temp_stats_open(start):
     # Create our session (link) from Python to the DB
     session = Session(engine)
 
-    """Return a list of temperature observations from the most active station for the last year"""
-    # Get most active station
-    station_activity = session.query(Measurement.station, func.count(Measurement.station).label('readings')).group_by(Measurement.station).all()
-    station_activity.sort(reverse=True, key=lambda x:x[1])
-    most_active = station_activity[0][0]
+    """Return a list of min, mean and max temperatures from the start date to the end of the data set"""
 
-
-    # Get most recent date, prior year start date
-    latest_text = session.query(func.max(Measurement.date)).all()[0][0]
-    latest_list = latest_text.split("-")
-    start_date = dt.date(int(latest_list[0]), int(latest_list[1]), int(latest_list[2])) - dt.timedelta(days=365)
-
+    # Validate start date input
+    try:
+        date_test = bool(dt.datetime.strptime(start, '%Y-%m-%d'))
+    except ValueError:
+        return f"Invalid date: {start}", 400
+    
     # Get requested temp data
-    active_temps = session.query(Measurement.date, Measurement.tobs).\
-        filter(func.strftime("%Y-%m-%d", Measurement.date) > start_date, Measurement.station == most_active).\
-        all()
+    temp_stats = session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
+        filter(func.strftime("%Y-%m-%d", Measurement.date) >= start).all()
 
     session.close()
 
-    # Convert list of tuples into dict
-    last_year_temps = []
+    return_stats = {'TMIN': temp_stats[0][0], 'TAVG': temp_stats[0][1], 'TMAX': temp_stats[0][2]}
 
-    for temp in active_temps:
-        last_year_temps.append(dict(temp))
-    
-    return (start)
+    return (jsonify(return_stats))
 
 
 # Temp obs route
